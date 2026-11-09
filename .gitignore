@@ -1,0 +1,16 @@
+# OS generated files
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+$RECYCLE.BIN/
+
+# Logs & temp
+*.log
+*.tmp
+*.bak
+temp/
+scratch/
+
+# Node
+node_modules/
+npm-debug.log*
