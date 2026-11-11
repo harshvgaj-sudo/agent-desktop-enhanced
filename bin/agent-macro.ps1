@@ -19,9 +19,20 @@ function Invoke-AgentDesk {
     [CmdletBinding()]
     param(
         [Parameter(ValueFromRemainingArguments=$true)]
-        [string[]]$CommandArgs
+        [object[]]$CommandArgs
     )
-    $res = & $BridgePath @CommandArgs
+    $flattened = @()
+    foreach ($item in $CommandArgs) {
+        if ($null -eq $item) { continue }
+        if ($item -is [System.Collections.IEnumerable] -and -not ($item -is [string])) {
+            foreach ($sub in $item) {
+                if ($null -ne $sub) { $flattened += [string]$sub }
+            }
+        } else {
+            $flattened += [string]$item
+        }
+    }
+    $res = & $BridgePath @flattened
     try {
         return ($res | ConvertFrom-Json)
     } catch {
@@ -47,13 +58,16 @@ function Find-And-Click {
     )
     # Step 1: Find target ref
     $findRes = Invoke-AgentDesk @("find", "--app", $App, "--role", $Role, "--name", $Name, "--first")
-    if (-not $findRes.ok -or -not $findRes.data.matches -or $findRes.data.matches.Count -eq 0) {
-        return @{ ok = $false; error = "Element '$Name' with role '$Role' not found in $App" }
-    }
     
-    $targetRef = $findRes.data.matches[0].ref_id
-    if (-not $targetRef) {
-        return @{ ok = $false; error = "Match found for '$Name' but had no actionable ref_id" }
+    $targetRef = $null
+    if ($findRes.data.match) {
+        $targetRef = $findRes.data.match.ref_id
+    } elseif ($findRes.data.matches -and $findRes.data.matches.Count -gt 0) {
+        $targetRef = $findRes.data.matches[0].ref_id
+    }
+
+    if (-not $findRes.ok -or -not $targetRef) {
+        return @{ ok = $false; error = "Element '$Name' with role '$Role' not found in $App" }
     }
 
     # Step 2: Click the target
@@ -69,17 +83,26 @@ function Set-AppField {
     )
     # Step 1: Find field ref
     $findRes = Invoke-AgentDesk @("find", "--app", $App, "--role", "textfield", "--name", $FieldName, "--first")
-    if (-not $findRes.ok -or -not $findRes.data.matches -or $findRes.data.matches.Count -eq 0) {
+    
+    $fieldRef = $null
+    if ($findRes.data.match) {
+        $fieldRef = $findRes.data.match.ref_id
+    } elseif ($findRes.data.matches -and $findRes.data.matches.Count -gt 0) {
+        $fieldRef = $findRes.data.matches[0].ref_id
+    }
+
+    if (-not $fieldRef) {
         # Fallback to search without exact role
         $findRes = Invoke-AgentDesk @("find", "--app", $App, "--name", $FieldName, "--first")
-        if (-not $findRes.ok -or -not $findRes.data.matches -or $findRes.data.matches.Count -eq 0) {
-            return @{ ok = $false; error = "Field '$FieldName' not found in $App" }
+        if ($findRes.data.match) {
+            $fieldRef = $findRes.data.match.ref_id
+        } elseif ($findRes.data.matches -and $findRes.data.matches.Count -gt 0) {
+            $fieldRef = $findRes.data.matches[0].ref_id
         }
     }
 
-    $fieldRef = $findRes.data.matches[0].ref_id
-    if (-not $fieldRef) {
-        return @{ ok = $false; error = "Field '$FieldName' has no actionable ref_id" }
+    if (-not $findRes.ok -or -not $fieldRef) {
+        return @{ ok = $false; error = "Field '$FieldName' not found in $App" }
     }
 
     # Step 2: Set Value

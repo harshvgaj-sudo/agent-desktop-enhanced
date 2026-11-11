@@ -38,7 +38,7 @@ function Resolve-AgentDesktopBinary {
     if ($cmd -and $cmd.Source -and (Test-Path $cmd.Source)) {
         return $cmd.Source
     }
-    return "C:\Users\harsh\AppData\Roaming\npm\node_modules\agent-desktop\bin\agent-desktop-win32-x64.exe"
+    return (Join-Path $env:APPDATA "npm\node_modules\agent-desktop\bin\agent-desktop-win32-x64.exe")
 }
 
 $exePath = Resolve-AgentDesktopBinary
