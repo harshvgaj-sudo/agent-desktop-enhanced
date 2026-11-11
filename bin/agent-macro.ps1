@@ -6,10 +6,22 @@
 
 $ScriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
 $BridgePath = Join-Path $ScriptDir "agent-desk.ps1"
+if (-not (Test-Path $BridgePath)) {
+    $cmd = Get-Command "agent-desk.ps1" -ErrorAction SilentlyContinue
+    if ($cmd -and $cmd.Source -and (Test-Path $cmd.Source)) {
+        $BridgePath = $cmd.Source
+    } else {
+        $BridgePath = Join-Path $env:APPDATA "npm\agent-desk.ps1"
+    }
+}
 
 function Invoke-AgentDesk {
-    param([string]$Arguments)
-    $res = & $BridgePath $Arguments
+    [CmdletBinding()]
+    param(
+        [Parameter(ValueFromRemainingArguments=$true)]
+        [string[]]$CommandArgs
+    )
+    $res = & $BridgePath @CommandArgs
     try {
         return ($res | ConvertFrom-Json)
     } catch {
@@ -22,9 +34,9 @@ function Snapshot-App {
         [Parameter(Mandatory=$true)][string]$App,
         [switch]$Skeleton
     )
-    $cmd = "snapshot --app `"$App`" -i --compact"
-    if ($Skeleton) { $cmd += " --skeleton" }
-    return Invoke-AgentDesk $cmd
+    $cmd = @("snapshot", "--app", $App, "-i", "--compact")
+    if ($Skeleton) { $cmd += "--skeleton" }
+    return (Invoke-AgentDesk @cmd)
 }
 
 function Find-And-Click {
@@ -34,8 +46,7 @@ function Find-And-Click {
         [string]$Role = "button"
     )
     # Step 1: Find target ref
-    $findCmd = "find --app `"$App`" --role $Role --name `"$Name`" --first"
-    $findRes = Invoke-AgentDesk $findCmd
+    $findRes = Invoke-AgentDesk @("find", "--app", $App, "--role", $Role, "--name", $Name, "--first")
     if (-not $findRes.ok -or -not $findRes.data.matches -or $findRes.data.matches.Count -eq 0) {
         return @{ ok = $false; error = "Element '$Name' with role '$Role' not found in $App" }
     }
@@ -46,8 +57,7 @@ function Find-And-Click {
     }
 
     # Step 2: Click the target
-    $clickCmd = "click '$targetRef'"
-    $clickRes = Invoke-AgentDesk $clickCmd
+    $clickRes = Invoke-AgentDesk @("click", $targetRef)
     return $clickRes
 }
 
@@ -58,12 +68,10 @@ function Set-AppField {
         [Parameter(Mandatory=$true)][string]$Value
     )
     # Step 1: Find field ref
-    $findCmd = "find --app `"$App`" --role textfield --name `"$FieldName`" --first"
-    $findRes = Invoke-AgentDesk $findCmd
+    $findRes = Invoke-AgentDesk @("find", "--app", $App, "--role", "textfield", "--name", $FieldName, "--first")
     if (-not $findRes.ok -or -not $findRes.data.matches -or $findRes.data.matches.Count -eq 0) {
         # Fallback to search without exact role
-        $findCmd = "find --app `"$App`" --name `"$FieldName`" --first"
-        $findRes = Invoke-AgentDesk $findCmd
+        $findRes = Invoke-AgentDesk @("find", "--app", $App, "--name", $FieldName, "--first")
         if (-not $findRes.ok -or -not $findRes.data.matches -or $findRes.data.matches.Count -eq 0) {
             return @{ ok = $false; error = "Field '$FieldName' not found in $App" }
         }
@@ -75,8 +83,7 @@ function Set-AppField {
     }
 
     # Step 2: Set Value
-    $setCmd = "set-value '$fieldRef' `"$Value`""
-    $setRes = Invoke-AgentDesk $setCmd
+    $setRes = Invoke-AgentDesk @("set-value", $fieldRef, $Value)
     return $setRes
 }
 
@@ -85,8 +92,7 @@ function Wait-AppWindow {
         [Parameter(Mandatory=$true)][string]$Title,
         [int]$TimeoutMs = 15000
     )
-    $cmd = "wait --window `"$Title`" --timeout $TimeoutMs"
-    return Invoke-AgentDesk $cmd
+    return (Invoke-AgentDesk @("wait", "--window", $Title, "--timeout", "$TimeoutMs"))
 }
 
 # CLI dispatcher if executed directly from terminal
