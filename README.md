@@ -16,7 +16,7 @@ Standard AI desktop automation tools often suffer from three fatal flaws on Wind
 
 2. **The PowerShell Splatting Trap:**
    * In PowerShell, a bare `@token` is the reserved splatting operator. PowerShell silently eats unquoted `@ref` arguments before the CLI ever receives them.
-   * **Solution:** An argument normalizer that automatically wraps all `@snapshot:eN` refs in safe single quotes.
+   * **Solution:** A ref normalizer + Win32 `CommandLineToArgvW` serializer that handles bare `@ref` and quoted `'@ref'` cleanly without double-quoting refs or splitting spaced arguments, plus concurrent pipe draining to prevent buffer deadlocks.
 
 3. **Multi-Turn LLM Latency:**
    * Filling a 4-field form normally takes 5–8 separate round trips to the LLM (`snapshot` $\rightarrow$ `set-value` $\rightarrow$ `snapshot` $\rightarrow$ `click`).

@@ -48,27 +48,27 @@ observation, actions and capture there fail or return nothing.
 
 When AI agents or subagent processes execute in background terminals, Windows isolates them into subshell window stations (`WinSta0\exebox-...`). Direct calls to `agent-desktop` fail with `INTERNAL: EnumWindows failed to enumerate top-level windows`.
 
-**The Solution:** Always execute via the interactive station bridge:
+**The Solution:** Execute via `agent-desk` (if installed on PATH) or the bridge script in this repository:
 ```powershell
-& 'C:\Users\harsh\Tools\agent-desktop-bridge\agent-desk.ps1' <command> [args...]
+& 'bin/agent-desk.ps1' <command> [args...]
 ```
-This launches the command with `STARTUPINFO.lpDesktop = @"WinSta0\default"`, directly targeting the active desktop.
+This launches the command with `STARTUPINFO.lpDesktop = @"WinSta0\default"`, directly targeting the active desktop, normalizing `@ref` quotes, escaping Win32 arguments with spaces/quotes, draining stdout without pipe deadlocks, and propagating exit codes cleanly.
 
 ## Agent Macro Engine (`agent-macro.ps1`)
 
 To reduce multi-step LLM back-and-forth round trips, use high-level compound macros:
 ```powershell
 # 1. Snapshot an app directly (interactive + compact)
-& 'C:\Users\harsh\Tools\agent-desktop-bridge\agent-macro.ps1' snapshot "explorer.exe"
+& 'bin/agent-macro.ps1' snapshot "explorer.exe"
 
 # 2. Find and click a button in one atomic call
-& 'C:\Users\harsh\Tools\agent-desktop-bridge\agent-macro.ps1' find-click "explorer.exe" "Search" "button"
+& 'bin/agent-macro.ps1' find-click "explorer.exe" "Search" "button"
 
 # 3. Locate textfield and set its value with verification
-& 'C:\Users\harsh\Tools\agent-desktop-bridge\agent-macro.ps1' set-field "explorer.exe" "Search Home" "my-query"
+& 'bin/agent-macro.ps1' set-field "explorer.exe" "Search Home" "my-query"
 
 # 4. Wait for an app window to appear
-& 'C:\Users\harsh\Tools\agent-desktop-bridge\agent-macro.ps1' wait-window "File Explorer" 15000
+& 'bin/agent-macro.ps1' wait-window "File Explorer" 15000
 ```
 
 ## First Contact

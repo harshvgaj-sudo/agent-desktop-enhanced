@@ -9,12 +9,14 @@ trigger: always_on
 When operating, observing, or automating desktop applications on Windows 11 using the `agent-desktop` CLI, all AI agents MUST adhere to these strict engineering invariants:
 
 ## 1. Interactive Desktop Station Invariant (No Sandbox Crashes)
-- Background AI terminals and subagents run inside isolated subshell window stations (`WinSta0\exebox-...`). Calling bare `agent-desktop` directly there fails with `EnumWindows failed to enumerate top-level windows`.
-- **MANDATORY:** Always execute desktop commands through the `agent-desk` bridge (or `run-desktop.ps1`) targeting `WinSta0\default`, ensuring direct access to the user's active, visible Windows session.
+- Background AI terminals and subagents run inside isolated subshell window stations (`WinSta0\exebox-...`). Calling the raw native binary directly there fails with `EnumWindows failed to enumerate top-level windows`.
+- **MANDATORY:** Always execute desktop commands using `agent-desk` on User PATH (`agent-desk <command>`) or `bin/agent-desk.ps1` targeting `WinSta0\default`, ensuring direct access to the user's active, visible Windows session.
 
-## 2. PowerShell Ref Quoting Invariant (No Splatting Deletion)
+## 2. PowerShell Ref Quoting & Win32 Argument Escaping Invariant
 - In PowerShell, a bare `@token` is the reserved splatting operator. PowerShell silently strips or alters bare `@ref` arguments before the binary sees them.
-- **MANDATORY:** Every element ref MUST be wrapped in single quotes: e.g. `'@s8f3k2p9:e12'`, NEVER `@s8f3k2p9:e12`.
+- **MANDATORY:** Every element ref MUST be wrapped in single quotes in PowerShell: e.g. `'@s8f3k2p9:e12'`, NEVER `@s8f3k2p9:e12`.
+- **Ref Normalization:** `agent-desk` normalizes both bare `@ref` and quoted `'@ref'` arguments, stripping outer quotes without injecting literal double-single quotes (`''@ref''`).
+- **Win32 Argument Escaping:** Multi-word argument values with spaces or quotes are automatically escaped per standard Win32 `CommandLineToArgvW` rules.
 
 ## 3. Closed-Loop "Observe -> Act -> Verify" Invariant
 - Never assume an action succeeded because the CLI returned exit code 0.
